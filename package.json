@@ -12,9 +12,15 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
-    "@tensorflow/tfjs-core": "^4.10.0",
-    "@tensorflow/tfjs-converter": "^4.10.0",
+    "@google/generative-ai": "^0.24.1",
+    "@tensorflow-models/face-landmarks-detection": "^1.0.2",
     "@tensorflow/tfjs-backend-webgl": "^4.10.0",
-    "@tensorflow-models/face-landmarks-detection": "^1.0.2"
+    "@tensorflow/tfjs-converter": "^4.10.0",
+    "@tensorflow/tfjs-core": "^4.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
+    "openai": "^6.10.0"
   }
 }

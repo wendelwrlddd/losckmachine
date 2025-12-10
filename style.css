@@ -128,10 +128,12 @@ h1 {
 
 .video-wrapper {
     position: relative;
-    width: 640px;
-    height: 480px;
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    height: auto;
+    max-width: 640px; /* Keep a sane max width */
+    max-height: 80vh; /* Don't overflow vertically */
+    aspect-ratio: auto; /* Let image define ratio */
+    margin: 0 auto; /* Center horizontally */
 }
 
 video, canvas {
@@ -140,7 +142,7 @@ video, canvas {
     left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain; /* Ensure full image is seen without cropping/distortion */
     transform: scaleX(-1);
 }
 

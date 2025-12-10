@@ -1,3 +1,4 @@
+import './style.css';
 /**
  * Face Analysis System - Snapshot Flow
  */
@@ -226,9 +227,7 @@ async function loadModels() {
     }
 }
 
-        setLoading(false);
-    }
-}
+
 
 async function startExperience() {
     ui.intro.classList.add('hidden');
@@ -317,37 +316,88 @@ async function captureSnapshot() {
     offCtx.drawImage(ui.video, -ui.canvas.width, 0, ui.canvas.width, ui.canvas.height);
     offCtx.restore();
 
-    try {
-        // 3. Run Deep Analysis
-        // Fix: New API takes (image, config), not object wrapper
-        const predictions = await model.estimateFaces(ui.video, {
-            flipHorizontal: true
-        });
-    
-        if (predictions.length > 0) {
-            const face = predictions[0];
-            analyzeFaceFeatures(face, offCtx); 
-            updateUI(); 
+    // 3. Run Deep Analysis
+        try {
+            // Convert offCanvas to base64 first
+            const base64Image = offCanvas.toDataURL('image/jpeg', 0.8);
             
-            drawHeatmap(face, ctx); 
-            ui.retryBtn.classList.remove('hidden');
-            ui.toggleHeatmap.classList.remove('hidden');
-    
-            if (ui.sidebar) ui.sidebar.classList.add('active');
+            // Convert base64 to Blob for FormData
+            setLoading(true, "Analisando com IA..."); // Ensure loading screen is visible
             
-            ui.statusText.innerText = "Análise Concluída";
-        } else {
-            alert("Rosto não detectado. Tente novamente.");
+            const res = await fetch(base64Image);
+            const blob = await res.blob();
+            const formData = new FormData();
+            formData.append('foto', blob, 'capture.jpg');
+
+            // Send to new Gemini backend
+            const response = await fetch('http://localhost:3000/api/analisar-rosto', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // Map Gemini JSON response to local state
+            // Gemini returns 0-10 strings/numbers, we map to 0-100
+            
+            // Helper to parse "8/10" or "8" to number
+            const parseScore = (val) => {
+                if(!val) return 50;
+                if(typeof val === 'number') return val * 10;
+                const num = parseFloat(val.toString().split('/')[0]);
+                return isNaN(num) ? 50 : num * 10;
+            };
+
+            analysisState.symmetry = parseScore(data.simetria?.nota);
+            analysisState.texture = parseScore(data.qualidade_pele?.nota);
+            
+            // These are not in the current prompt, so we keep them random/mock or set neutral
+            analysisState.oiliness = 50; 
+            analysisState.beardDensity = 50; // Could add to prompt later
+            
+            // Format valid insights
+            const points = data.sugestoes_melhoria || [];
+            if(Array.isArray(points)) {
+                 analysisState.insight = points[0]; // Take the first suggestion as main insight
+            } else {
+                 analysisState.insight = "Melhore sua rotina de cuidados.";
+            }
+            
+            // Visuals
+            const predictions = await model.estimateFaces(ui.video, { flipHorizontal: true });
+            if (predictions.length > 0) {
+                 const face = predictions[0];
+                 // Keep visual mesh
+                 analyzeFaceFeatures(face, offCtx); 
+                 
+                 updateUI();
+                 drawHeatmap(face, ctx);
+                 
+                 ui.retryBtn.classList.remove('hidden');
+                 ui.toggleHeatmap.classList.remove('hidden');
+                 if (ui.sidebar) ui.sidebar.classList.add('active');
+                 ui.statusText.innerText = "Análise Concluída";
+            } else {
+                 alert("Rosto não detectado para overlay. Mas análise de dados concluída.");
+                 updateUI();
+            }
+
+        } catch(e) {
+            console.error("Analysis failed", e);
+            alert("Erro na análise (API): " + e.message);
             resetExperience();
+        } finally {
+            setLoading(false);
         }
-    } catch(e) {
-        console.error("Analysis failed", e);
-        alert("Erro na análise: " + e.message);
-        resetExperience();
-    } finally {
-        setLoading(false); // Hide Overlay
     }
-}
+    
+// Removed mock logic that was here before because we now fetch data.
+// We still keep the helper to draw mesh/heatmap, but NOT to calculate scores.
+
 
 function resetExperience() {
     isAnalysing = true;
@@ -483,10 +533,21 @@ function updateUI() {
     
     // Insights
     const list = document.getElementById('insights-list');
-    list.innerHTML = `
-        <li>Symmetria: ${analysisState.symmetry}%</li>
-        <li>Textura de pele detectada: ${analysisState.texture > 50 ? 'Alta' : 'Suave'}</li>
+    
+    // Build list items
+    let html = `
+        <li>Simetria: ${analysisState.symmetry}%</li>
+        <li>Textura: ${analysisState.texture}%</li>
+        <li>Oleosidade: ${analysisState.oiliness}%</li>
     `;
+    
+    if (analysisState.insight) {
+        html += `<li class="ai-insight-item"><strong>IA:</strong> ${analysisState.insight}</li>`;
+    } else {
+        html += `<li>Textura de pele detectada: ${analysisState.texture > 50 ? 'Alta' : 'Suave'}</li>`;
+    }
+    
+    list.innerHTML = html;
 }
 
 function updateBar(id, val) {
