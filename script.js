@@ -265,8 +265,8 @@ async function previewLoop() {
     // We just draw the mesh overlay.
 
     if (model) {
-        const predictions = await model.estimateFaces({
-            input: ui.video,
+        // Fix: New API takes (image, config)
+        const predictions = await model.estimateFaces(ui.video, {
             flipHorizontal: true
         });
 
@@ -301,8 +301,8 @@ async function captureSnapshot() {
 
     try {
         // 3. Run Deep Analysis
-        const predictions = await model.estimateFaces({
-            input: ui.video, 
+        // Fix: New API takes (image, config), not object wrapper
+        const predictions = await model.estimateFaces(ui.video, {
             flipHorizontal: true
         });
     
