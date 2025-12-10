@@ -55,17 +55,127 @@ async function init() {
     ui.captureBtn.addEventListener('click', captureSnapshot);
     ui.retryBtn.addEventListener('click', resetExperience);
     ui.toggleHeatmap.addEventListener('click', toggleHeatmapLayer);
+    
+    // File Upload Handlers
+    const uploadTrigger = document.getElementById('upload-trigger-btn');
+    const fileInput = document.getElementById('file-upload');
+    
+    if(uploadTrigger && fileInput) {
+        uploadTrigger.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileUpload);
+    }
+}
+
+// --- Loading Helper ---
+function setLoading(isLoading, message = "Processando...") {
+    const loader = document.getElementById('loading-overlay');
+    const loaderText = loader.querySelector('p');
+    if(isLoading) {
+        loaderText.innerText = message;
+        loader.classList.remove('hidden');
+    } else {
+        loader.classList.add('hidden');
+    }
+}
+
+async function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if(!file) return;
+    
+    setLoading(true, "Lendo arquivo...");
+    
+    try {
+        // Prepare UI for static analysis
+        ui.intro.classList.add('hidden');
+        ui.analysis.classList.remove('hidden');
+        
+        // Load image
+        const img = await loadImage(file);
+        
+        // Stop any camera
+        if(ui.video.srcObject) {
+            ui.video.srcObject.getTracks().forEach(track => track.stop());
+        }
+        
+        // Set canvas size to match image aspect ratio, maxed at screen size
+        const maxWidth = window.innerWidth;
+        const maxHeight = window.innerHeight * 0.8;
+        const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+        
+        ui.canvas.width = img.width * scale;
+        ui.canvas.height = img.height * scale;
+        offCanvas.width = ui.canvas.width;
+        offCanvas.height = ui.canvas.height;
+        
+        // Draw image to canvases
+        ctx.clearRect(0,0, ui.canvas.width, ui.canvas.height);
+        ctx.drawImage(img, 0, 0, ui.canvas.width, ui.canvas.height);
+        
+        offCtx.clearRect(0,0, offCanvas.width, offCanvas.height);
+        offCtx.drawImage(img, 0, 0, offCanvas.width, offCanvas.height);
+        
+        // Hide video element, show canvas-only mode
+        ui.video.style.display = 'none';
+        
+        // Run Analysis
+        setLoading(true, "Analisando IA...");
+        await analyzeStaticImage(ui.canvas);
+        
+    } catch (err) {
+        console.error(err);
+        alert("Erro ao ler imagem: " + err.message);
+        resetExperience();
+    } finally {
+        setLoading(false);
+    }
+}
+
+function loadImage(file) {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+    });
+}
+
+// Separate function for static analysis (reused by both camera capture and upload)
+async function analyzeStaticImage(imageSource) {
+    if (!model) await loadModels();
+    
+    const predictions = await model.estimateFaces(imageSource, {
+        flipHorizontal: false // Don't flip uploaded images
+    });
+
+    if (predictions.length > 0) {
+        const face = predictions[0];
+        analyzeFaceFeatures(face, offCtx);
+        updateUI();
+        drawHeatmap(face, ctx);
+        
+        // Show Report
+        ui.captureBtn.classList.add('hidden');
+        ui.retryBtn.classList.remove('hidden');
+        ui.toggleHeatmap.classList.remove('hidden');
+        if (ui.sidebar) ui.sidebar.classList.add('active');
+        
+        ui.statusText.innerText = "Análise de Imagem Concluída";
+    } else {
+        alert("Nenhum rosto detectado nesta imagem. Tente outra.");
+        resetExperience();
+    }
 }
 
 async function loadModels() {
     try {
         ui.startBtn.innerText = "Carregando...";
+        setLoading(true, "Carregando modelos IA..."); // Use new loader
         
         // Fix: Use correct API for v1.0.2+
-        // It uses createDetector instead of load, and SupportedModels instead of SupportedPackages
         const modelType = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
         const detectorConfig = {
-            runtime: 'tfjs', // Use 'tfjs' to avoid separate wasm loading issues for now
+            runtime: 'tfjs', 
             refineLandmarks: true,
             maxFaces: 1
         };
@@ -75,10 +185,13 @@ async function loadModels() {
         isModelLoaded = true;
         ui.startBtn.innerText = "Analisar Rosto";
         ui.startBtn.disabled = false;
+        
+        setLoading(false);
     } catch (e) {
         console.error(e);
         alert("Erro ao carregar IA: " + e.message);
         ui.statusText.innerText = "Erro no carregamento";
+        setLoading(false);
     }
 }
 
@@ -149,7 +262,7 @@ async function captureSnapshot() {
     cancelAnimationFrame(animationId);
 
     ui.statusText.innerText = "Processando...";
-    ui.statusDot.classList.add('loading');
+    setLoading(true, "Processando Captura..."); // Show Overlay
     ui.captureBtn.classList.add('hidden');
     
     // 1. Draw final freeze frame to canvas (so we can hide video)
@@ -164,30 +277,35 @@ async function captureSnapshot() {
     offCtx.drawImage(ui.video, -ui.canvas.width, 0, ui.canvas.width, ui.canvas.height);
     offCtx.restore();
 
-    // 3. Run Deep Analysis
-    const predictions = await model.estimateFaces({
-        input: ui.video, // Use the last video frame
-        flipHorizontal: true
-    });
-
-    if (predictions.length > 0) {
-        const face = predictions[0];
-        analyzeFaceFeatures(face, offCtx); // Uses the pixel data
-        updateUI(); // Populate report
-        
-        // Show Heatmap and Controls
-        drawHeatmap(face, ctx); 
-        ui.retryBtn.classList.remove('hidden');
-        ui.toggleHeatmap.classList.remove('hidden');
-
-        // Open Bottom Sheet
-        if (ui.sidebar) ui.sidebar.classList.add('active');
-        
-        ui.statusText.innerText = "Análise Concluída";
-        ui.statusDot.classList.remove('loading');
-    } else {
-        alert("Rosto não detectado. Tente novamente.");
+    try {
+        // 3. Run Deep Analysis
+        const predictions = await model.estimateFaces({
+            input: ui.video, 
+            flipHorizontal: true
+        });
+    
+        if (predictions.length > 0) {
+            const face = predictions[0];
+            analyzeFaceFeatures(face, offCtx); 
+            updateUI(); 
+            
+            drawHeatmap(face, ctx); 
+            ui.retryBtn.classList.remove('hidden');
+            ui.toggleHeatmap.classList.remove('hidden');
+    
+            if (ui.sidebar) ui.sidebar.classList.add('active');
+            
+            ui.statusText.innerText = "Análise Concluída";
+        } else {
+            alert("Rosto não detectado. Tente novamente.");
+            resetExperience();
+        }
+    } catch(e) {
+        console.error("Analysis failed", e);
+        alert("Erro na análise: " + e.message);
         resetExperience();
+    } finally {
+        setLoading(false); // Hide Overlay
     }
 }
 
