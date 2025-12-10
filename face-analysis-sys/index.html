@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Analysis AI - System</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- TensorFlow.js & Models -->
+    <!-- Using the specific versions to ensure compatibility -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.10.0/dist/tf-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.10.0/dist/tf-converter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.10.0/dist/tf-backend-webgl.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.2/dist/face-landmarks-detection.min.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Main Analysis Area -->
+        <main class="main-view">
+            <header class="top-bar">
+                <h1>Face<span class="highlight">Architect</span> AI</h1>
+                <div class="status-indicator" id="status-indicator">
+                    <span class="dot"></span> <span id="status-text">Carregando modelos...</span>
+                </div>
+            </header>
+
+            <div class="visualizer-container">
+                <div class="video-wrapper">
+                    <!-- Video element for camera feed -->
+                    <video id="video" playsinline webkit-playsinline muted autoplay></video>
+                    <!-- Canvas for drawing landmarks and heatmap -->
+                    <canvas id="output"></canvas>
+                </div>
+                
+                <div class="controls">
+                    <button id="toggle-heatmap" class="btn btn-primary">
+                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
+                        </svg>
+                        Ver Heatmap
+                    </button>
+                    <button id="reset-view" class="btn btn-secondary">Normal View</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Sidebar Report -->
+        <aside class="sidebar">
+            <div class="report-header">
+                <h2>Relatório em Tempo Real</h2>
+            </div>
+            
+            <div class="metrics-grid">
+                <!-- Scores -->
+                <div class="metric-card">
+                    <div class="metric-title">Simetria</div>
+                    <div class="metric-value" id="score-symmetry">--%</div>
+                    <div class="progress-bar"><div class="fill" id="bar-symmetry" style="width: 0%"></div></div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-title">Textura / Rugosidade</div>
+                    <div class="metric-value" id="score-texture">--</div>
+                    <div class="progress-bar"><div class="fill" id="bar-texture" style="width: 0%"></div></div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-title">Oleosidade (Brilho)</div>
+                    <div class="metric-value" id="score-oiliness">--</div>
+                    <div class="progress-bar"><div class="fill" id="bar-oiliness" style="width: 0%"></div></div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-title">Densidade Barba</div>
+                    <div class="metric-value" id="score-beard">--</div>
+                    <div class="progress-bar"><div class="fill" id="bar-beard" style="width: 0%"></div></div>
+                </div>
+            </div>
+
+            <div class="analysis-section">
+                <h3>Insights da IA</h3>
+                <ul class="insights-list" id="insights-list">
+                    <li>Aguardando análise facial...</li>
+                </ul>
+            </div>
+
+            <div class="recommendation-section">
+                <h3>Sugestões</h3>
+                <div class="suggestion-box" id="suggestion-box">
+                    <p>Posicione o rosto no centro da câmera.</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Main Logic -->
+    <script src="script.js"></script>
+</body>
+</html>
