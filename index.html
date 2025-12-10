@@ -22,12 +22,32 @@
 <body>
 
     <div class="app-container">
-        <!-- Main Analysis Area -->
-        <main class="main-view">
+        
+        <!-- INTRO SCREEN -->
+        <section id="intro-screen" class="screen active">
+            <div class="intro-content">
+                <h1>Face<span class="highlight">Architect</span></h1>
+                <p>Análise facial profissional com Inteligência Artificial.</p>
+                
+                <div class="features-preview">
+                    <span>✨ Simetria</span>
+                    <span>💧 Pele</span>
+                    <span>🧔 Barba</span>
+                </div>
+
+                <button id="start-btn" class="btn btn-primary btn-large">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Analisar Rosto
+                </button>
+            </div>
+        </section>
+
+        <!-- Main Analysis Area (Originally Hidden) -->
+        <main id="analysis-screen" class="main-view hidden">
             <header class="top-bar">
-                <h1>Face<span class="highlight">Architect</span> AI</h1>
+                <h1>Face<span class="highlight">Architect</span></h1>
                 <div class="status-indicator" id="status-indicator">
-                    <span class="dot"></span> <span id="status-text">Carregando modelos...</span>
+                    <span class="dot"></span> <span id="status-text">Iniciando câmera...</span>
                 </div>
             </header>
 
@@ -40,17 +60,25 @@
                 </div>
                 
                 <div class="controls">
-                    <button id="toggle-heatmap" class="btn btn-primary">
-                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
-                        </svg>
+                    <!-- Capture Button (Primary Action) -->
+                    <button id="capture-btn" class="btn btn-primary btn-capture">
+                        <div class="shutter-icon"></div>
+                        Capturar Análise
+                    </button>
+
+                    <!-- Retry Button (Hidden initially) -->
+                    <button id="retry-btn" class="btn btn-secondary hidden">
+                        Refazer
+                    </button>
+
+                    <!-- Heatmap Toggle (Secondary) -->
+                    <button id="toggle-heatmap" class="btn btn-secondary hidden">
                         Ver Heatmap
                     </button>
-                    <button id="reset-view" class="btn btn-secondary">Normal View</button>
                 </div>
             </div>
         </main>
+
 
         <!-- Sidebar Report -->
         <aside class="sidebar">
