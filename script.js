@@ -117,31 +117,42 @@ async function handleFileUpload(e) {
         // Stop any camera
         if(ui.video.srcObject) {
             ui.video.srcObject.getTracks().forEach(track => track.stop());
+            ui.video.srcObject = null;
         }
         
-        // Set canvas size to match image aspect ratio, maxed at screen size
-        const maxWidth = window.innerWidth;
-        const maxHeight = window.innerHeight * 0.8;
-        const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+        // Fix Visibility: Video wrapper collapses if video is hidden. 
+        // We must set dimensions on the wrapper or rely on the canvas forcing it.
+        // Let's force the canvas to be relative or update wrapper.
+        const wrapper = document.querySelector('.video-wrapper');
+        if (wrapper) {
+            wrapper.style.aspectRatio = `${img.width} / ${img.height}`;
+        }
         
-        ui.canvas.width = img.width * scale;
-        ui.canvas.height = img.height * scale;
-        offCanvas.width = ui.canvas.width;
-        offCanvas.height = ui.canvas.height;
+        // Set canvas size
+        // We need to match the render size for proper overlay
+        // Simplest strategy: Set canvas to image native size, let CSS scale it.
+        ui.canvas.width = img.width;
+        ui.canvas.height = img.height;
+        offCanvas.width = img.width;
+        offCanvas.height = img.height;
         
         // Draw image to canvases
         ctx.clearRect(0,0, ui.canvas.width, ui.canvas.height);
-        ctx.drawImage(img, 0, 0, ui.canvas.width, ui.canvas.height);
+        ctx.drawImage(img, 0, 0);
         
         offCtx.clearRect(0,0, offCanvas.width, offCanvas.height);
-        offCtx.drawImage(img, 0, 0, offCanvas.width, offCanvas.height);
+        offCtx.drawImage(img, 0, 0);
         
-        // Hide video element, show canvas-only mode
+        // Hide video, Ensure Canvas is Visible
         ui.video.style.display = 'none';
+        ui.canvas.style.display = 'block';
+        ui.canvas.style.top = '0';
+        ui.canvas.style.left = '0';
+        ui.canvas.style.position = 'absolute'; // Ensure it overlays properly if needed, or relative if alone
         
-        // Run Analysis
+        // Run Analysis using the IMAGE element directly (Safe from 0x0 canvas issues)
         setLoading(true, "Analisando IA...");
-        await analyzeStaticImage(ui.canvas);
+        await analyzeStaticImage(img);
         
     } catch (err) {
         console.error(err);
