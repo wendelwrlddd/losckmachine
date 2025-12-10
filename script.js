@@ -60,15 +60,25 @@ async function init() {
 async function loadModels() {
     try {
         ui.startBtn.innerText = "Carregando...";
-        model = await faceLandmarksDetection.load(
-            faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
-            { maxFaces: 1 }
-        );
+        
+        // Fix: Use correct API for v1.0.2+
+        // It uses createDetector instead of load, and SupportedModels instead of SupportedPackages
+        const modelType = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
+        const detectorConfig = {
+            runtime: 'tfjs', // Use 'tfjs' to avoid separate wasm loading issues for now
+            refineLandmarks: true,
+            maxFaces: 1
+        };
+
+        model = await faceLandmarksDetection.createDetector(modelType, detectorConfig);
+
         isModelLoaded = true;
         ui.startBtn.innerText = "Analisar Rosto";
         ui.startBtn.disabled = false;
     } catch (e) {
+        console.error(e);
         alert("Erro ao carregar IA: " + e.message);
+        ui.statusText.innerText = "Erro no carregamento";
     }
 }
 
