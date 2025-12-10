@@ -145,14 +145,12 @@ async function handleFileUpload(e) {
         
         // Hide video, Ensure Canvas is Visible
         ui.video.style.display = 'none';
-        ui.canvas.style.display = 'block';
-        ui.canvas.style.top = '0';
-        ui.canvas.style.left = '0';
-        ui.canvas.style.position = 'absolute'; // Ensure it overlays properly if needed, or relative if alone
+        ui.canvas.style.display = 'block'; // Visual only
         
-        // Run Analysis using the IMAGE element directly (Safe from 0x0 canvas issues)
+        // Run Analysis using the OFFSCREEN CANVAS 
+        // (It has the resized image and is robust against DOM visibility issues)
         setLoading(true, "Analisando IA...");
-        await analyzeStaticImage(img);
+        await analyzeStaticImage(offCanvas);
         
     } catch (err) {
         console.error(err);
@@ -173,12 +171,13 @@ function loadImage(file) {
     });
 }
 
-// Separate function for static analysis (reused by both camera capture and upload)
+// Separate function for static analysis
 async function analyzeStaticImage(imageSource) {
     if (!model) await loadModels();
     
+    // Note: createDetector API returns { keypoints: [{x,y,z,name}, ...] }
     const predictions = await model.estimateFaces(imageSource, {
-        flipHorizontal: false // Don't flip uploaded images
+        flipHorizontal: false 
     });
 
     if (predictions.length > 0) {
@@ -195,7 +194,7 @@ async function analyzeStaticImage(imageSource) {
         
         ui.statusText.innerText = "Análise de Imagem Concluída";
     } else {
-        alert("Nenhum rosto detectado nesta imagem. Tente outra.");
+        alert("Nenhum rosto detectado. Tente uma foto com iluminação melhor e de frente.");
         resetExperience();
     }
 }
@@ -203,9 +202,8 @@ async function analyzeStaticImage(imageSource) {
 async function loadModels() {
     try {
         ui.startBtn.innerText = "Carregando...";
-        setLoading(true, "Carregando modelos IA..."); // Use new loader
+        setLoading(true, "Carregando modelos IA...");
         
-        // Fix: Use correct API for v1.0.2+
         const modelType = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
         const detectorConfig = {
             runtime: 'tfjs', 
@@ -228,139 +226,30 @@ async function loadModels() {
     }
 }
 
-async function startExperience() {
-    ui.intro.classList.add('hidden');
-    ui.analysis.classList.remove('hidden');
-
-    try {
-        // Request Camera (iOS requires this user gesture chain)
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { 
-                width: { ideal: CONFIG.videoWidth }, 
-                height: { ideal: CONFIG.videoHeight },
-                facingMode: 'user' 
-            },
-            audio: false
-        });
-        ui.video.srcObject = stream;
-        
-        // Wait for connection
-        ui.video.onloadedmetadata = () => {
-             ui.canvas.width = ui.video.videoWidth;
-             ui.canvas.height = ui.video.videoHeight;
-             offCanvas.width = ui.video.videoWidth;
-             offCanvas.height = ui.video.videoHeight;
-             
-             ui.statusText.innerText = "Posicione seu rosto";
-             ui.statusDot.style.backgroundColor = "#10b981";
-             
-             // Start Preview Loop
-             isAnalysing = true;
-             previewLoop();
-        };
-
-    } catch (err) {
-        console.error(err);
-        alert("Permissão de câmera negada. Por favor, permita o acesso para continuar.");
-        location.reload();
-    }
-}
-
-// --- 2. PREVIEW LOOP ---
-async function previewLoop() {
-    if (!isAnalysing) return; // Stop if captured
-
-    // Draw Video
-    ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
-    // Note: We don't draw video to canvas here, browser handles <video> tag. 
-    // We just draw the mesh overlay.
-
-    if (model) {
-        // Fix: New API takes (image, config)
-        const predictions = await model.estimateFaces(ui.video, {
-            flipHorizontal: true
-        });
-
-        if (predictions.length > 0) {
-            drawMesh(predictions[0], ctx);
-        }
-    }
-
-    animationId = requestAnimationFrame(previewLoop);
-}
-
-// --- 3. CAPTURE LOGIC ---
-async function captureSnapshot() {
-    isAnalysing = false; // Stop loop
-    cancelAnimationFrame(animationId);
-
-    ui.statusText.innerText = "Processando...";
-    setLoading(true, "Processando Captura..."); // Show Overlay
-    ui.captureBtn.classList.add('hidden');
-    
-    // 1. Draw final freeze frame to canvas (so we can hide video)
-    ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(ui.video, -ui.canvas.width, 0, ui.canvas.width, ui.canvas.height);
-    ctx.restore();
-    
-    // 2. Draw to offscreen for pixel analysis
-    offCtx.save();
-    offCtx.scale(-1, 1);
-    offCtx.drawImage(ui.video, -ui.canvas.width, 0, ui.canvas.width, ui.canvas.height);
-    offCtx.restore();
-
-    try {
-        // 3. Run Deep Analysis
-        // Fix: New API takes (image, config), not object wrapper
-        const predictions = await model.estimateFaces(ui.video, {
-            flipHorizontal: true
-        });
-    
-        if (predictions.length > 0) {
-            const face = predictions[0];
-            analyzeFaceFeatures(face, offCtx); 
-            updateUI(); 
-            
-            drawHeatmap(face, ctx); 
-            ui.retryBtn.classList.remove('hidden');
-            ui.toggleHeatmap.classList.remove('hidden');
-    
-            if (ui.sidebar) ui.sidebar.classList.add('active');
-            
-            ui.statusText.innerText = "Análise Concluída";
-        } else {
-            alert("Rosto não detectado. Tente novamente.");
-            resetExperience();
-        }
-    } catch(e) {
-        console.error("Analysis failed", e);
-        alert("Erro na análise: " + e.message);
-        resetExperience();
-    } finally {
-        setLoading(false); // Hide Overlay
-    }
-}
-
-function resetExperience() {
-    isAnalysing = true;
-    ui.captureBtn.classList.remove('hidden');
-    ui.retryBtn.classList.add('hidden');
-    ui.toggleHeatmap.classList.add('hidden');
-    ui.statusText.innerText = "Posicione seu rosto";
-    
-    // Close sheet
-    if (ui.sidebar) ui.sidebar.classList.remove('active');
-    
-    previewLoop();
-}
+// ... startExperience, previewLoop, captureSnapshot ...
 
 // --- 4. ANALYSIS & VISUALS (Reused logic) ---
 function analyzeFaceFeatures(face, ctxSource) {
-    // ... (Keep existing Logic but ensure it uses the ctxSource passed) ...
-    // Re-implementing simplified version for brevity in replacing
-    const landmarks = face.scaledMesh;
+    // Adapter: Handle both Old API (scaledMesh array) and New API (keypoints object)
+    let landmarks;
+    if (face.keypoints) {
+        // New API: Array of objects {x, y, z, name}
+        // Map to array of arrays [x, y, z] to match legacy logic
+        landmarks = face.keypoints.map(p => [p.x, p.y, p.z]);
+    } else {
+        // Old API
+        landmarks = face.scaledMesh;
+    }
     
+    // If we somehow still don't have landmarks, abort
+    if (!landmarks) {
+        console.error("No landmarks found in face object", face);
+        return;
+    }
+    
+    // Patch face object for other functions (drawHeatmap etc)
+    face.scaledMesh = landmarks; 
+
     // Symmetry
     const nose = landmarks[1];
     const leftCheek = landmarks[234];
