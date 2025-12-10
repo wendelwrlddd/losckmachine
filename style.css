@@ -1,53 +1,78 @@
 :root {
-    --bg-dark: #0f1115;
-    --bg-panel: #181b21;
-    --primary: #4f46e5;
-    --primary-hover: #4338ca;
+    --bg-dark: #09090b;
+    --bg-panel: #18181b;
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
     --accent: #10b981;
-    --text-main: #ffffff;
-    --text-muted: #9ca3af;
-    --border: #2d3139;
-    --glass: rgba(24, 27, 33, 0.8);
+    --text-main: #fafafa;
+    --text-muted: #a1a1aa;
+    --border: #27272a;
+    --glass: rgba(24, 24, 27, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --bottom-sheet-height: 40vh;
 }
 
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-color: var(--bg-dark);
     color: var(--text-main);
-    height: 100vh;
+    height: 100vh; /* Fallback */
+    height: 100dvh; /* Dynamic viewport height */
     overflow: hidden;
+    scrollbar-width: none; /* Firefox */
+}
+
+body::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
 }
 
 .app-container {
     display: flex;
     height: 100%;
+    width: 100%;
+    overflow: hidden;
 }
 
-/* Main View */
+/* --- Main View (Video Area) --- */
 .main-view {
     flex: 1;
+    position: relative;
     display: flex;
     flex-direction: column;
     padding: 20px;
-    position: relative;
+    z-index: 1; /* Below sidebar on desktop, handled differently on mobile */
+    transition: all 0.3s ease;
 }
 
+/* Header */
 .top-bar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    z-index: 10;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 12px 16px;
+    border-radius: 99px;
+    border: 1px solid var(--glass-border);
 }
 
 h1 {
-    font-size: 1.5rem;
+    font-size: 1rem;
     font-weight: 700;
+    letter-spacing: -0.5px;
 }
 
 .highlight {
@@ -57,28 +82,36 @@ h1 {
 .status-indicator {
     display: flex;
     align-items: center;
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    background: var(--bg-panel);
-    padding: 6px 12px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px 10px;
+    border-radius: 99px;
 }
 
 .dot {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     background-color: var(--accent);
     border-radius: 50%;
-    margin-right: 8px;
+    margin-right: 6px;
     box-shadow: 0 0 8px var(--accent);
 }
 
 .dot.loading {
     background-color: #f59e0b;
     box-shadow: 0 0 8px #f59e0b;
+    animation: pulse 1s infinite;
 }
 
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Video Container */
 .visualizer-container {
     flex: 1;
     display: flex;
@@ -86,9 +119,10 @@ h1 {
     align-items: center;
     justify-content: center;
     position: relative;
-    background: #000;
-    border-radius: 16px;
+    border-radius: 24px;
     overflow: hidden;
+    background: #000;
+    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5);
     border: 1px solid var(--border);
 }
 
@@ -100,39 +134,46 @@ h1 {
     max-height: 100%;
 }
 
-video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1); /* Mirror effect */
-}
-
-canvas {
+video, canvas {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    transform: scaleX(-1); /* Match mirror effect */
+    object-fit: cover;
+    transform: scaleX(-1);
 }
 
+/* Floating Controls */
 .controls {
     position: absolute;
-    bottom: 20px;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
-    gap: 10px;
+    gap: 12px;
+    z-index: 20;
 }
 
 .btn {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-weight: 500;
+    height: 48px;
+    padding: 0 24px;
+    border-radius: 99px;
+    font-weight: 600;
+    font-size: 0.9rem;
     cursor: pointer;
     border: none;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+    transform: scale(0.96);
 }
 
 .btn-primary {
@@ -140,105 +181,219 @@ canvas {
     color: white;
 }
 
-.btn-primary:hover {
-    background-color: var(--primary-hover);
-}
-
 .btn-secondary {
-    background-color: var(--bg-panel);
-    color: var(--text-main);
-    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.btn-secondary:hover {
-    background-color: var(--border);
-}
-
-/* Sidebar */
+/* --- Sidebar / Bottom Sheet --- */
 .sidebar {
-    width: 360px;
+    width: 380px;
     background-color: var(--bg-panel);
     border-left: 1px solid var(--border);
-    padding: 24px;
+    padding: 32px 24px;
     display: flex;
     flex-direction: column;
     gap: 24px;
     overflow-y: auto;
-    backdrop-filter: blur(10px);
+    z-index: 50;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .report-header h2 {
-    font-size: 1.2rem;
-    margin-bottom: 4px;
+    font-size: 1.25rem;
+    font-weight: 700;
 }
 
 .metrics-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 12px;
 }
 
 .metric-card {
-    background: var(--bg-dark);
-    padding: 12px;
-    border-radius: 12px;
+    background: #202024;
+    padding: 16px;
+    border-radius: 16px;
     border: 1px solid var(--border);
 }
 
 .metric-title {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .metric-value {
-    font-size: 1.4rem;
-    font-weight: 600;
-    margin-bottom: 8px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text-main);
 }
 
 .progress-bar {
     width: 100%;
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
+    height: 6px;
+    background: #2d2d30;
+    border-radius: 99px;
     overflow: hidden;
 }
 
 .fill {
     height: 100%;
     background: var(--primary);
-    transition: width 0.5s ease;
+    border-radius: 99px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.analysis-section h3, .recommendation-section h3 {
-    font-size: 1rem;
-    margin-bottom: 12px;
+/* Sections */
+h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.insights-list {
-    list-style: none;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
 }
 
 .insights-list li {
-    padding: 8px 0;
+    padding: 12px 0;
     border-bottom: 1px solid var(--border);
     font-size: 0.95rem;
+    line-height: 1.5;
+    color: #e4e4e7;
+    display: flex;
+    align-items: start;
+    gap: 8px;
 }
 
-.insights-list li:last-child {
-    border-bottom: none;
-}
+.insights-list li:last-child { border: none; }
 
 .suggestion-box {
-    background: rgba(16, 185, 129, 0.1);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
     border: 1px solid rgba(16, 185, 129, 0.2);
-    padding: 16px;
-    border-radius: 12px;
-    color: var(--accent);
+    padding: 20px;
+    border-radius: 16px;
+    color: #34d399;
     font-size: 0.95rem;
-    line-height: 1.5;
+    line-height: 1.6;
+}
+
+/* --- MOBILE RESPONSIVE --- */
+@media (max-width: 900px) {
+    .app-container {
+        flex-direction: column;
+        background: #000;
+    }
+
+    /* Main View becomes the background layer */
+    .main-view {
+        padding: 0;
+        height: 100vh;
+        width: 100%;
+        position: fixed;
+        top: 0;
+        left: 0;
+    }
+
+    .top-bar {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+    }
+
+    .visualizer-container {
+        border-radius: 0;
+        border: none;
+        height: 100%; /* Full screen height */
+        background: black;
+    }
+    
+    .video-wrapper {
+        width: 100%;
+        height: 100%;
+    }
+    
+    video, canvas {
+        object-fit: cover; /* Cover entire screen */
+    }
+
+    /* Controls move slightly up to clear bottom sheet handle */
+    .controls {
+        bottom: calc(var(--bottom-sheet-height) + 20px); /* Position above sheet initially */
+        width: 100%;
+        justify-content: Center;
+        transition: bottom 0.3s ease;
+    }
+
+    /* Bottom Sheet Style */
+    .sidebar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 75vh; /* Max height when expanded */
+        background: rgba(24, 24, 27, 0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-left: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px 24px 0 0;
+        padding: 24px;
+        transform: translateY(calc(75vh - 220px)); /* Peek state */
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+        z-index: 100;
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: transform;
+    }
+
+    /* Drag Handle */
+    .sidebar::before {
+        content: '';
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 99px;
+    }
+
+    /* When class .expanded is added via JS (optional) or hover */
+    .sidebar:hover, .sidebar:focus-within, .sidebar.active {
+        transform: translateY(0);
+    }
+    
+    /* Adjust grid for mobile */
+    .metrics-grid {
+        grid-template-columns: 1fr 1fr; /* Keep 2 columns even on mobile */
+        gap: 10px;
+    }
+
+    .metric-value {
+        font-size: 1.25rem;
+    }
+
+    .btn {
+        height: 44px;
+        font-size: 0.85rem;
+        padding: 0 20px;
+    }
+}
+
+/* Specific tweaks for very small screens */
+@media (max-height: 700px) {
+    .controls {
+        bottom: 180px; /* Force controls up on small phones */
+    }
+    .sidebar {
+        transform: translateY(calc(75vh - 160px)); /* Smaller peek */
+    }
 }

@@ -96,6 +96,14 @@ function setupEvents() {
         isHeatmapEnabled = false;
         document.getElementById('toggle-heatmap').innerText = "Ver Heatmap";
     });
+
+    // Mobile: Toggle Sidebar on Click/Tap
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) {
+        sidebar.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+    }
 }
 
 async function loadModels() {
