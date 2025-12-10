@@ -226,7 +226,147 @@ async function loadModels() {
     }
 }
 
-// ... startExperience, previewLoop, captureSnapshot ...
+        setLoading(false);
+    }
+}
+
+async function startExperience() {
+    ui.intro.classList.add('hidden');
+    ui.analysis.classList.remove('hidden');
+
+    try {
+        // Request Camera (iOS requires this user gesture chain)
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+                width: { ideal: CONFIG.videoWidth }, 
+                height: { ideal: CONFIG.videoHeight },
+                facingMode: 'user' 
+            },
+            audio: false
+        });
+        ui.video.srcObject = stream;
+        
+        // Wait for connection
+        ui.video.onloadedmetadata = () => {
+             ui.canvas.width = ui.video.videoWidth;
+             ui.canvas.height = ui.video.videoHeight;
+             offCanvas.width = ui.video.videoWidth;
+             offCanvas.height = ui.video.videoHeight;
+             
+             ui.statusText.innerText = "Posicione seu rosto";
+             ui.statusDot.style.backgroundColor = "#10b981";
+             
+             // Start Preview Loop
+             isAnalysing = true;
+             previewLoop();
+        };
+
+    } catch (err) {
+        console.error(err);
+        alert("Permissão de câmera negada. Por favor, permita o acesso para continuar.");
+        location.reload();
+    }
+}
+
+// --- 2. PREVIEW LOOP ---
+async function previewLoop() {
+    if (!isAnalysing) return; // Stop if captured
+
+    // Draw Video
+    ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
+    // Note: We don't draw video to canvas here, browser handles <video> tag. 
+    // We just draw the mesh overlay.
+
+    if (model) {
+        // Fix: New API takes (image, config)
+        try {
+            const predictions = await model.estimateFaces(ui.video, {
+                flipHorizontal: true
+            });
+
+            if (predictions.length > 0) {
+                drawMesh(predictions[0], ctx);
+            }
+        } catch (e) {
+            // Ignore frame errors in preview to prevent crashing
+            console.warn("Frame skipped", e);
+        }
+    }
+
+    animationId = requestAnimationFrame(previewLoop);
+}
+
+// --- 3. CAPTURE LOGIC ---
+async function captureSnapshot() {
+    isAnalysing = false; // Stop loop
+    cancelAnimationFrame(animationId);
+
+    ui.statusText.innerText = "Processando...";
+    setLoading(true, "Processando Captura..."); // Show Overlay
+    ui.captureBtn.classList.add('hidden');
+    
+    // 1. Draw final freeze frame to canvas (so we can hide video)
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.drawImage(ui.video, -ui.canvas.width, 0, ui.canvas.width, ui.canvas.height);
+    ctx.restore();
+    
+    // 2. Draw to offscreen for pixel analysis
+    offCtx.save();
+    offCtx.scale(-1, 1);
+    offCtx.drawImage(ui.video, -ui.canvas.width, 0, ui.canvas.width, ui.canvas.height);
+    offCtx.restore();
+
+    try {
+        // 3. Run Deep Analysis
+        // Fix: New API takes (image, config), not object wrapper
+        const predictions = await model.estimateFaces(ui.video, {
+            flipHorizontal: true
+        });
+    
+        if (predictions.length > 0) {
+            const face = predictions[0];
+            analyzeFaceFeatures(face, offCtx); 
+            updateUI(); 
+            
+            drawHeatmap(face, ctx); 
+            ui.retryBtn.classList.remove('hidden');
+            ui.toggleHeatmap.classList.remove('hidden');
+    
+            if (ui.sidebar) ui.sidebar.classList.add('active');
+            
+            ui.statusText.innerText = "Análise Concluída";
+        } else {
+            alert("Rosto não detectado. Tente novamente.");
+            resetExperience();
+        }
+    } catch(e) {
+        console.error("Analysis failed", e);
+        alert("Erro na análise: " + e.message);
+        resetExperience();
+    } finally {
+        setLoading(false); // Hide Overlay
+    }
+}
+
+function resetExperience() {
+    isAnalysing = true;
+    ui.captureBtn.classList.remove('hidden');
+    ui.retryBtn.classList.add('hidden');
+    ui.toggleHeatmap.classList.add('hidden');
+    ui.statusText.innerText = "Posicione seu rosto";
+    
+    // Close sheet
+    if (ui.sidebar) ui.sidebar.classList.remove('active');
+    
+    // Show video again
+    ui.video.style.display = 'block';
+    ui.canvas.style.display = 'block'; 
+    // Reset canvas position from upload mode if needed
+    ui.canvas.style.position = '';
+    
+    previewLoop();
+}
 
 // --- 4. ANALYSIS & VISUALS (Reused logic) ---
 function analyzeFaceFeatures(face, ctxSource) {
