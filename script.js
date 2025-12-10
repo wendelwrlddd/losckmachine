@@ -67,14 +67,36 @@ async function init() {
 }
 
 // --- Loading Helper ---
+// --- Loading Helper ---
 function setLoading(isLoading, message = "Processando...") {
-    const loader = document.getElementById('loading-overlay');
+    let loader = document.getElementById('loading-overlay');
+    
+    // Robustness: Create if missing (handles cached HTML mismatch)
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'loading-overlay';
+        loader.className = 'hidden';
+        loader.innerHTML = `
+            <div class="loader-content">
+                <div class="spinner"></div>
+                <p>${message}</p>
+            </div>
+        `;
+        document.body.appendChild(loader);
+        
+        // Add basic styles inline just in case CSS is also cached/missing
+        loader.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:2000;display:flex;justify-content:center;align-items:center;color:white;font-family:sans-serif;";
+    }
+
     const loaderText = loader.querySelector('p');
+    if (loaderText) loaderText.innerText = message;
+    
     if(isLoading) {
-        loaderText.innerText = message;
         loader.classList.remove('hidden');
+        loader.style.display = 'flex'; // Force display
     } else {
         loader.classList.add('hidden');
+        loader.style.display = 'none';
     }
 }
 
